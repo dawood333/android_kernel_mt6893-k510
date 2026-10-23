@@ -1,0 +1,60 @@
+name: Build ares DTBO
+
+on:
+  push:
+    branches:
+      - 'work/build-ares-dtbo'
+    paths:
+      - '.github/workflows/build-ares-dtbo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-dtbo:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout kernel source
+        uses: actions/checkout@v4
+        with:
+          ref: work/build-ares-dtbo
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential clang flex libelf-dev libssl-dev lld llvm python3 python3-pip device-tree-compiler
+
+      - name: Configure ares kernel DTBO
+        shell: bash
+        run: |
+          set -euxo pipefail
+          export ARCH=arm64
+          export LLVM=1
+          export LLVM_IAS=1
+          make O=out ares_defconfig
+          scripts/config --file out/.config --enable BUILD_ARM64_DTB_OVERLAY_IMAGE
+          scripts/config --file out/.config --set-str BUILD_ARM64_DTB_OVERLAY_IMAGE_NAMES "mediatek/ares"
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 olddefconfig
+          grep -E '^CONFIG_BUILD_ARM64_DTB_OVERLAY_IMAGE(=|_)' out/.config
+
+      - name: Build DTBO image
+        shell: bash
+        run: |
+          set -euxo pipefail
+          make O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 -j"$(nproc)" dtbo.img
+          test -s out/arch/arm64/boot/dtbo.img
+          file out/arch/arm64/boot/dtbo.img
+          ls -lh out/arch/arm64/boot/dtbo.img
+          find out/arch/arm64/boot/dts/mediatek -name '*.dtbo' -type f -print
+
+      - name: Upload dtbo.img
+        if: always() && hashFiles('out/arch/arm64/boot/dtbo.img') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ares-dtbo-img
+          path: out/arch/arm64/boot/dtbo.img
+          if-no-files-found: error
+          retention-days: 14
