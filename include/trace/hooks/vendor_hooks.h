@@ -109,8 +109,12 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
 #endif /* TRACE_HEADER_MULTI_READ */
 
 #else /* !CONFIG_TRACEPOINTS || !CONFIG_ANDROID_VENDOR_HOOKS */
-/* suppress trace hooks */
-#define DECLARE_HOOK DECLARE_EVENT_NOP
-#define DECLARE_RESTRICTED_HOOK(name, proto, args, cond)		\
-	DECLARE_EVENT_NOP(name, PARAMS(proto), PARAMS(args))
+/*
+ * This tree does not provide DECLARE_EVENT_NOP. Keep hook call sites
+ * buildable when vendor hooks are disabled by supplying empty inline stubs.
+ */
+#define DECLARE_HOOK(name, proto, args) \
+	static inline void trace_##name(proto) { }
+#define DECLARE_RESTRICTED_HOOK(name, proto, args, cond) \
+	static inline void trace_##name(proto) { }
 #endif
