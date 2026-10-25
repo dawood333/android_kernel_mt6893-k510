@@ -114,7 +114,7 @@ int android_rvh_probe_register(struct tracepoint *tp, void *probe, void *data);
  * buildable when vendor hooks are disabled by supplying empty inline stubs.
  */
 #define DECLARE_HOOK(name, proto, args) \
-	static inline void trace_##name(proto) { }
+	static inline void trace_##name proto { }
 #define DECLARE_RESTRICTED_HOOK(name, proto, args, cond) \
-	static inline void trace_##name(proto) { }
+	static inline void trace_##name proto { }
 #endif
